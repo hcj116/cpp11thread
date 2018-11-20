@@ -14,7 +14,7 @@ std::unique_lock lock(mutex);
 // wait返回后可以安全的使用mutex保护的临界区内的数据。此时mutex仍为上锁状态
 cv.wait(lock)
 ```
-需要注意的一点是, wait有时会在没有任何线程调用notify的情况下返回，这种情况就是有名的[**spurious wakeup**](https://docs.microsoft.com/zh-cn/windows/desktop/api/synchapi/nf-synchapi-sleepconditionvariablecs)。因此当wait返回时，你需要再次检查wait的前置条件是否满足，如果不满足则需要再次wait。wait提供了重载的版本，用于提供前置检查。
+需要注意的一点是, wait有时会在没有任何线程调用notify的情况下返回，这种情况就是有名的[**spurious wakeup**](https://docs.microsoft.com/zh-cn/windows/desktop/api/synchapi/nf-synchapi-sleepconditionvariablecs)。因此当wait返回时，你需要再次检查wait的前置条件是否满足，如果不满足则需要再次wait。wait提供了重载的版本，用于提供前置检查。
 ```c++
 template <typename Predicate>
 void wait(unique_lock<mutex> &lock, Predicate pred) {
@@ -23,7 +23,7 @@ void wait(unique_lock<mutex> &lock, Predicate pred) {
     }
 }
 ```
-除wait外, 条件变量还提供了wait_for和wait_until，这两个名称是不是看着有点儿眼熟，std::mutex也提供了_for和_until操作。在C++11多线程编程中，需要等待一段时间的操作，一般情况下都会有xxx_for和xxx_until版本。前者用于等待指定时长，后者用于等待到指定的时间。
+除wait外, 条件变量还提供了wait_for和wait_until，这两个名称是不是看着有点儿眼熟，std::mutex也提供了_for和_until操作。在C++11多线程编程中，需要等待一段时间的操作，一般情况下都会有xxx_for和xxx_until版本。前者用于等待指定时长，后者用于等待到指定的时间。
 ### 1.2 notify
 了解了wait，notify就简单多了：唤醒wait在该条件变量上的线程。notify有两个版本：notify_one和notify_all。
  * notify_one 唤醒等待的一个线程，注意只唤醒一个。
@@ -47,7 +47,7 @@ cv.notify_all(lock)
 ```c++
 #include <stdio.h>
 #include <thread>
-#include "chan.h"  // chan的头文件
+#include "chan.h"  // chan的头文件
 
 using namespace std::chrono;
 
@@ -82,109 +82,6 @@ int main() {
     return 0;
 }
 ```
-## 附: 源码
-下面附上chan的实现，该代码在g++和vc 2015下均编译通过，其它平台未验证。chan很强大，我们在后面的文章中会多次使用到该类，有兴趣的读者可以看一下，欢迎大家一起交流。
-```c++
-// chan.h
-#pragma once
-#include <memory>  // shared_ptr
-#include <mutex>
-#include <condition_variable>
-
-template <typename T>
-class chan {
-    struct _queue_t {
-        T *_data; // 循环使用
-        bool _closed = false;   // 队列是否已关闭
-        const size_t _capacity; // _data容量
-        size_t _old = 0;        // 最旧的数据，优先取走之
-        size_t _new = 0;        // 新数据的插入位置，当_old==_new表明队列为空
-        std::mutex _mutex;
-        std::condition_variable _cv;
-
-        _queue_t(size_t capacity) : _capacity(capacity) {
-            _data = new T[capacity];
-        }
-
-        ~_queue_t() {
-            delete[] _data;
-            _data = nullptr;
-        }
-
-        bool is_full() const {
-            return _old + _capacity <= _new;
-        }
-
-        bool is_empty() const {
-            return _old >= _new;
-        }
-    };
-    std::shared_ptr<_queue_t> _queue;
-
-  public:
-    // 当capacity为0时，入chan操作会阻塞，直到有出chan操作为止
-    chan(size_t capacity = 0) {
-        _queue = std::make_shared<_queue_t>(capacity + 1);
-    }
-
-    // 支持拷贝
-    chan(const chan &) = default;
-    chan(chan &&) = default;
-    // 支持move
-    chan &operator=(const chan &) = default;
-    chan &operator=(chan &&) = default;
-
-    // 入chan，调用时如果chan未close，则在执行过程中即使close了，入chan也会成功
-    bool operator<<(const T &data) {
-        std::unique_lock<std::mutex> lock(_queue->_mutex);
-        if (_queue->_closed) {
-            return false;
-        }
-        _queue->_cv.wait(lock, [&]() { return !_queue->is_full(); });
-
-        const bool empty = _queue->is_empty();
-        _queue->_data[_queue->_new++ % _queue->_capacity] = data;
-        if (empty) {
-            _queue->_cv.notify_all();
-        }
-        /**
-         由于_queue的容量比用户定制的尺寸大1, 当queue满时，实际上已“溢出“,需等待queue回复正常, 入chan操作也会成功
-         */
-        _queue->_cv.wait(lock, [&]() { return !_queue->is_full(); });
-
-        return true;
-    }
-
-    // 出chan
-    bool operator>>(T &data) {
-        std::unique_lock<std::mutex> lock(_queue->_mutex);
-        _queue->_cv.wait(lock, [&]() {
-            return !_queue->is_empty() || _queue->_closed;
-        });
-
-        if (_queue->is_empty()) {
-            // 已关闭
-            return false;
-        }
-
-        const bool full = _queue->is_full();
-        data = _queue->_data[_queue->_old++ % _queue->_capacity];
-        if (_queue->_old >= _queue->_capacity) {
-            _queue->_old -= _queue->_capacity;
-            _queue->_new -= _queue->_capacity;
-        }
-
-        if (full) {
-            _queue->_cv.notify_all();
-        }
-
-        return true;
-    }
-
-    // close以后的入chan操作会抛出closed_error异常
-    void close() {
-        std::unique_lock<std::mutex> lock(_queue->_mutex);
-        _queue->_closed = true;
-    }
-};
-```
+## 源码:
+[chan.h](./chan.h)
+[chan.simple.h](./chan.simple.h)
