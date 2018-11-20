@@ -31,7 +31,7 @@ public:
 ### 3.1 get
 这个函数我们之前一直使用，该函数会一直阻塞，直到获取到结果或异步任务抛出异常。
 ### 3.2 share
-std::future允许move，但是不允许拷贝。如果用户确有这种需求，需要同时持有多个实例，怎么办呢? 这就是share发挥作用的时候了。std::shared_future通过引用计数的方式实现了多实例[共享同一状态](#assoc_state)，但有计数就伴随着同步开销(无锁的原子操作也是有开销的)，性能会稍有下降。因此C++11要求程序员显式调用该函数，以表明用户对由此带来的开销负责。std::shared_future允许move，允许拷贝，并且具有和std::future同样的成员函数，此处就不一一介绍了。当调用share后，std::future对象就不再和任何[共享状态](#assoc_state)关联，其[valid](#valid)函数也会变为false。
+std::future允许move，但是不允许拷贝。如果用户确有这种需求，需要同时持有多个实例，怎么办呢? 这就是share发挥作用的时候了。std::shared_future通过引用计数的方式实现了多实例[共享同一状态](#assoc_state)，但有计数就伴随着同步开销(无锁的原子操作也是有开销的)，性能会稍有下降。因此C++11要求程序员显式调用该函数，以表明用户对由此带来的开销负责。std::shared_future允许move，允许拷贝，并且具有和std::future同样的成员函数，此处就不一一介绍了。当调用share后，std::future对象就不再和任何[共享状态](#assoc_state)关联，其[valid](#valid)函数也会变为false。
 ### 3.3 wait
 等待，直到数据就绪。数据就绪时，通过get函数，无等待即可获得数据。
 ### 3.4 wait_for和wait_until
