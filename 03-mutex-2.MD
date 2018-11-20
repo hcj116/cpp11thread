@@ -43,7 +43,7 @@ int main() {
 OK, still locked
 ```
 ## 2. unique_lock
-lock_guard提供了简单上锁、解锁操作，但当我们需要更灵活的操作时便无能为力了。这些就需要unique_lock上场了。unique_lock拥有对Mutex的**所有权**，一但初始化了unique_lock，其就接管了该mutex, 在unique_lock结束生命周期前(析构前)，其它地方就不要再直接使用该mutex了。unique_lock提供的功能较多，此处不一一列举，下面列出unique_lock的类声明，及部分注释，供大家参考
+lock_guard提供了简单上锁、解锁操作，但当我们需要更灵活的操作时便无能为力了。这些就需要unique_lock上场了。unique_lock拥有对Mutex的**所有权**，一但初始化了unique_lock，其就接管了该mutex, 在unique_lock结束生命周期前(析构前)，其它地方就不要再直接使用该mutex了。unique_lock提供的功能较多，此处不一一列举，下面列出unique_lock的类声明，及部分注释，供大家参考
 ```c++
 template <class Mutex>
 class unique_lock
@@ -139,7 +139,7 @@ template <class L1, class L2, class... L3>
   int try_lock(L1&, L2&, L3&...);
 ```
 ## 5. std::lock
-std::lock是较智能的上批量上锁方式，采用死锁算法来锁定给定的mutex列表，避免死锁。该函数对mutex列表的上锁顺序是不确定的。该函数保证: 如果成功，则所有mutex全部上锁，如果失败，则全部解锁。
+std::lock是较智能的上批量上锁方式，采用死锁算法来锁定给定的mutex列表，避免死锁。该函数对mutex列表的上锁顺序是不确定的。该函数保证: 如果成功，则所有mutex全部上锁，如果失败，则全部解锁。
 ```c++
 template <class L1, class L2, class... L3>
   void lock(L1&, L2&, L3&...);
