@@ -111,7 +111,7 @@ private:
 };
 ```
 以上给出了get的实现(伪代码)，其它部分虽然没实现，但assoc_state应该具有的功能，以及对std::promise、std::packaged_task、std::future、std::shared_future的支撑应该能够表达清楚了。未实现部分还请读者自行补充一下，权当是练手了。<br/>
-有兴趣的读者可以阅读[llvm-libxx](https://github.com/llvm-mirror/libcxx)(https://github.com/llvm-mirror/libcxx)的源码，以了解更多细节，对共享状态有更深掌握。
+有兴趣的读者可以阅读[llvm-libxx](https://github.com/llvm-mirror/libcxx)(https://github.com/llvm-mirror/libcxx) 的源码，以了解更多细节，对共享状态有更深掌握。
 ## 5. <a id="async">std::async</a>
 std::async可以看作是对std::packaged_task的封装(虽然实际并一定如此，取决于编译器的实现，但共享状态的思想是不变的)，有两种重载形式:
 ```c++
