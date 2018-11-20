@@ -1,11 +1,12 @@
 # C++11多线程-mutex(1)
 mutex又称互斥量，用于提供对共享变量的互斥访问。C++11中mutex相关的类都在\<mutex\>头文件中。共四种互斥类:
-|序号|名称|用途
-|:--:|--|----
-|1|std::mutex|最基本也是最常用的互斥类
-|2|std::recursive_mutex|同一线程内可递归(重入)的互斥类
-|3|std::timed_mutex|除具备mutex功能外，还提供了带时限请求锁定的能力
-|4|std::recursive_timed_mutex|同一线程内可递归(重入)的timed_mutex
+<table>
+  <tr><td>序号</td><td>名称</td><td>用途</td></tr>
+  <tr><td>1</td><td>std::mutex</td><td>最基本也是最常用的互斥类</td></tr>
+  <tr><td>2</td><td>std::recursive_mutex</td><td>同一线程内可递归(重入)的互斥类</td></tr>
+  <tr><td>3</td><td>std::timed_mutex</td><td>除具备mutex功能外，还提供了带时限请求锁定的能力</td></tr>
+  <tr><td>4</td><td>std::recursive_timed_mutex</td><td>同一线程内可递归(重入)的timed_mutex</td></tr>
+</table>
 与std::thread一样，mutex相关类不支持拷贝构造、不支持赋值。同时mutex类也不支持move语义(move构造、move赋值)。不用担心会误用这些操作，真要这么做了的话，编译器会阻止你的。
 
 ## 一、lock, try_lock, unlock
