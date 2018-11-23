@@ -55,7 +55,7 @@ int main() {
 ```
 运行该程序
 
-```
+```commandline
 $> g++ -std=c++11 -o debug/tls.out ./thread_local.cpp
 $> ./debug/tls.out
 01 A(0xc00720)
