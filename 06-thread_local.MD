@@ -55,14 +55,14 @@ int main() {
 ```
 运行该程序
 
-```
+```commandline
 $> g++ -std=c++11 -o debug/tls.out ./thread_local.cpp
 $> ./debug/tls.out
-0x11780a5c0 A(0x7febdfc00720)
-Thread: 0x70000645c000 entered
-0x70000645c000 A(0x7febdfc02ee0)
-0x70000645c000 ~A(0x7febdfc02ee0)
-0x11780a5c0 ~A(0x7febdfc00720)
+01 A(0xc00720)
+Thread: 02 entered
+02 A(0xc02ee0)
+02 ~A(0xc02ee0)
+01 ~A(0xc00720)
 $>
 ```
 a在nain线程和t线程中分别保留了一份副本，以下时序图表明了两份副本的生命周期。<br/>
