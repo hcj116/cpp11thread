@@ -58,12 +58,42 @@ int main() {
 ```
 $> g++ -std=c++11 -o debug/tls.out ./thread_local.cpp
 $> ./debug/tls.out
-0x11780a5c0 A(0x7febdfc00720)
-Thread: 0x70000645c000 entered
-0x70000645c000 A(0x7febdfc02ee0)
-0x70000645c000 ~A(0x7febdfc02ee0)
-0x11780a5c0 ~A(0x7febdfc00720)
+01 A(0xc00720)
+Thread: 02 entered
+02 A(0xc02ee0)
+02 ~A(0xc02ee0)
+01 ~A(0xc00720)
 $>
 ```
-a在nain线程和t线程中分别保留了一份副本，以下时序图表明了两份副本的生命周期。<br/>
+a在main线程和t线程中分别保留了一份副本，以下时序图表明了两份副本的生命周期。<br/>
 ![](./images/thread_local.png)
+
+## 附：std::future中共享状态set_value_at_thread_exit函数的实现
+有了thread_local，则共享状态的set_value_at_thread_exit函数实现起来就容易多了: 只要将异步结果推迟到线程退出时，再调用assoc_state::set_value时就可以了，下面是其伪代码：
+
+```c++
+class assoc_state_tls {
+    // 线程析构时要执行的函数列表
+    std::list<std::function<void()>> funcs_;
+public:
+    ~assoc_state_tls() {
+        for (auto f: funcs_) {
+            f();
+        }
+    }
+
+    void add(std::function<void()> f) {
+        funcs_.push_back(f);
+    }
+};
+thread_local assoc_state_tls assoc_state_tls_;
+
+// 实现set_value_at_thread_exit
+template<typename T>
+void assoc_state<T>::set_value_at_thread_exit(const T &v) {
+    // 当前所在线程结束时，再调用set_value
+    assoc_state_tls_.add([this](){
+        this->set_value(v);
+    })；
+}
+```
