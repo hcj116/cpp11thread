@@ -7,7 +7,7 @@
 ## 5. [C++11多线程-异步运行之promise](./05-async-1-promise.MD)
 ## 6. [C++11多线程-异步运行之packaged_task](./05-async-2-packaged_task.MD)
 ## 7. [C++11多线程-异步运行之最终篇(future+async)](./05-async-3-future.MD)
-## 8. [C++11多线程-线程局部存储](./06-thread_local.MD) - 进行中...
+## 8. [C++11多线程-线程局部存储](./06-thread_local.MD)
 ## 9. [C++11多线程-原子操作(atomic)](./07-atomic.MD) - 未完成
 ## 10. [C++11多线程-内存模型](./08-memory.MD) - 未完成
 
