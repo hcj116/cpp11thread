@@ -1,5 +1,5 @@
 # C++11多线程-原子操作(2)
-[上一篇](c0da859a7ce0)我们介绍了原子操作中最简单的std::atomic_flag，今天我们看一下std::atomic<T>类。
+上一篇我们介绍了原子操作中最简单的std::atomic_flag，今天我们看一下std::atomic\<T\>类。
 ## 2. std::atomic\<T\>
 std::atomic是一个模板类，它定义了一些atomic应该具有的通用操作，我们一起来看一下:
 ### 2.1 is_lock_free
