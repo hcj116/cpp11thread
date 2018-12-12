@@ -18,6 +18,7 @@
 #include <condition_variable>  // std::condition_variable
 #include <memory>              // unique_ptr
 #include <mutex>               // std::mutex
+#include <vector>
 #ifndef CHAN_MAX_COUNTER
 #    include <limits>  // std::numeric_limits
 // VC下max问题: https://www.cnblogs.com/cvbnm/articles/1947743.html
@@ -31,8 +32,7 @@ enum class push_policy : unsigned char {
     discard,      // 丢弃当前入chan的值，并返回false。非阻塞
 };
 
-template <typename T>
-class chan {
+namespace ns_chan {
     // 避免惊群
     class cv_t {
         std::condition_variable cv_;
@@ -63,6 +63,8 @@ class chan {
             cv_.notify_all();
         }
     };
+
+    template<typename T>
     class queue_t {
         mutable std::mutex mutex_;
         cv_t cv_push_;
@@ -74,33 +76,23 @@ class chan {
         size_t first_ = 0;     // 队列中的第一条数据
         size_t new_ = 0;       // 新数据的插入位置，first_==new_队列为空
         T data_[0];            // T data_[capacity_]
-    public:
+    private:
         queue_t(size_t capacity, push_policy policy)
             : capacity_(capacity == 0 ? 1 : capacity),
               policy_(policy),
               cv_overflow_(capacity == 0 ? new std::condition_variable() : nullptr) {
         }
+    public:
+        queue_t(const queue_t &) = delete;
+        queue_t(queue_t &&) = delete;
+        queue_t &operator=(const queue_t &) = delete;
+        queue_t &operator=(queue_t &&) = delete;
+
         ~queue_t() {
             for (; first_ < new_; first_++) {
                 data(first_).~T();
             }
             delete cv_overflow_;
-        }
-
-        size_t free_count() const {
-            return first_ + capacity_ - new_;
-        }
-        bool is_empty() const {
-            return first_ >= new_;
-        }
-        T &data(size_t pos) {
-            return data_[pos % capacity_];
-        }
-
-        void reset_pos() {
-            const size_t new_first = (this->first_ % this->capacity_);
-            this->new_ -= (this->first_ - new_first);
-            this->first_ = new_first;
         }
 
         // close以后的入chan操作会返回false, 而出chan则在队列为空后，才返回false
@@ -193,15 +185,47 @@ class chan {
 
             return true;
         }
+        size_t free_count() const {
+            return first_ + capacity_ - new_;
+        }
+        bool is_empty() const {
+            return first_ >= new_;
+        }
+        T &data(size_t pos) {
+            return data_[pos % capacity_];
+        }
+
+        void reset_pos() {
+            const size_t new_first = (this->first_ % this->capacity_);
+            this->new_ -= (this->first_ - new_first);
+            this->first_ = new_first;
+        }
+
     };
-    std::shared_ptr<queue_t> queue_;
+}
+
+template <typename T>
+class chan {
+    struct data_t{
+        std::vector<std::shared_ptr<ns_chan::queue_t<T> > > queue_;
+        std::atomic<unsigned int> push_{0}, pop_{0};
+    };
+
+    std::shared_ptr<data_t> data_;
 
 public:
     //sizeof(queue__t) = 216, sizeof(cv) = 48/56, sizeof(mutex) = 64
+    // 选取适当的concurrent_shift和capacity，chan的吞吐理可达千万/秒
+    explicit chan(size_t concurrent_shift, size_t capacity, push_policy policy = push_policy::blocking) {
+        data_ = std::make_shared<data_t>();
+        data_->queue_.resize(1 << concurrent_shift);
+        for (auto &r: data_->queue_) {
+            r = ns_chan::queue_t<T>::make_queue(capacity, policy);
+        }
+    }
+
     explicit chan(size_t capacity = 0, push_policy policy = push_policy::blocking)
-        : queue_(queue_t::make_queue(capacity, policy)) {
-            // printf("sizeof(queue__t) = %lu, sizeof(cv) = %lu/%lu, sizeof(mutex) = %lu\n",
-            //  sizeof(queue__t), sizeof(std::condition_variable), sizeof(_cv_t), sizeof(std::mutex));
+        : chan(0, capacity, policy) {
     }
 
     // 支持拷贝
@@ -214,35 +238,46 @@ public:
     // 入chan，支持move语义
     template <typename TR>
     bool operator<<(TR &&data) {
-        return queue_->push(std::forward<TR>(data));
+        unsigned int index = data_->push_.fetch_add(1, std::memory_order_acq_rel);
+        return data_->queue_[index % length()]->push(std::forward<TR>(data));
     }
     template <typename TR>
     bool push(TR &&data) {
-        return queue_->push(std::forward<TR>(data));
+        unsigned int index = data_->push_.fetch_add(1, std::memory_order_acq_rel);
+        return data_->queue_[index % length()]->push(std::forward<TR>(data));
     }
 
     void close() {
-        queue_->close();
+        for (size_t i = 0; i < length(); i++) {
+            data_->queue_[i]->close();
+        }
     }
 
     bool is_closed() const {
-        return queue_->is_closed();
+        return data_->queue_[0]->is_closed();
     }
 
     // 出chan
     template <typename TR>
     bool operator>>(TR &d) {
-        return queue_->pop([&d](T &&target) { d = std::forward<T>(target); });
+        unsigned int index = data_->pop_.fetch_add(1, std::memory_order_acq_rel);
+        return data_->queue_[index % length()]->pop([&d](T &&target) { d = std::forward<T>(target); });
     }
 
     // 性能较operator>>稍差，但外部用起来更方便
     // 当返回false时表明chan已关闭: while(d = ch.pop()){}
     std::unique_ptr<T> pop() {
+        unsigned int index = data_->pop_.fetch_add(1, std::memory_order_acq_rel);
         std::unique_ptr<T> d;
-        queue_->pop([&d](T &&target) { d.reset(new T(std::forward<T>(target))); });
+        data_->queue_[index % length()]->pop([&d](T &&target) { d.reset(new T(std::forward<T>(target))); });
         return d;
     }
+private:
+    size_t length() const {
+        return data_->queue_.size();
+    }
 };
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
