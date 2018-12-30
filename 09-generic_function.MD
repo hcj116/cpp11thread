@@ -331,8 +331,14 @@ vec.size => 3
 ```
 扩展过程中模式(pattern)会独立地应用于包中的每一个元素。同时pattern也可以接受多个参数，并非仅仅只能接受参数包。
 ## 5.3 参数包的转发
-C++11中，我们可以同时使用变参函数模板和std::forward机制来编写函数，将实参原封不动地传递给其它函数。其中典型的应用是std::vector::emplace_back操作，有兴趣的读者可以去阅读其源码，在此就不展开讨论了。
-
+C++11中，我们可以同时使用变参函数模板和std::forward机制来编写函数，将实参原封不动地传递给其它函数。其中典型的应用是std::vector::emplace_back操作:
+```c++
+template<typename T, typename Allocator>
+template <class... _Args>
+void vector<T, Allocator>::emplace_back(_Args&&... __args) {
+    push_back (T(forward<_Args>(__args)... ));
+}
+```
 # 六、其它
 ## 6.1 函数模板 .vs. 模板函数
 函数模板重点在*模板*。表示这是一个模板，用来生成函数。<br/>模板函数重点在*函数*。表示的是由一个模板生成而来的函数。
