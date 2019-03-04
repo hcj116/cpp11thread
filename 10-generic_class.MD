@@ -1,5 +1,5 @@
 # C++11泛型 - 类模板
-前面我们介绍了函数模板。今天我们来看看C++的另一种泛型：类模板。C++中类模板通常是容器(如std::vector)或行为的封装(如之前我们实现的chan<T>类)。类模板语法：
+前面我们介绍了[函数模板](09-generic_function.MD)。今天我们来看看C++的另一种泛型：类模板。C++中类模板通常是容器(如std::vector)或行为的封装(如之前我们实现的chan<T>类)。类模板语法：
 ```c++
 template < parameter-list > class-declaration
 ```
